@@ -12,7 +12,7 @@ const fraudAlertSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['PENDING', 'REVIEWED', 'RESOLVED'],
+        enum: ['PENDING', 'REVIEWED', 'CONFIRMED', DISMISSED],
         default: 'PENDING',
     },
 

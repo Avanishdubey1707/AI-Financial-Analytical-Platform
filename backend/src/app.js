@@ -7,14 +7,23 @@ app.use(express.json({ limit: "50mb" }));
 
 // All Routes
 const userRoutes = require("./routes/user.route");
-const portfolioRoute = require("./routes/portfolio.route");
-const transactionRoute = require("./routes/transaction.route");
-const fraudRoute = require("./routes/fraud.route");
+const portfolioRoutes = require("./routes/portfolio.route");
+const transactionRoutes = require("./routes/transaction.route");
+const fraudRoutes = require("./routes/fraud.route");
+const stockRoutes = require("./routes/stock.route");
+const predictionRoutes = require("./routes/prediction.route");
+const rocommendationRoutes = require("./routes/recommendation.route");
+const expenseForcastsRoutes = require("./routes/expenseForcasts.route");
+const reportRoutes = require("./routes/report.routes");
 
-app.use("/api/v1/user", userRoutes);
-app.use("/api/v1/portfolio", portfolioRoute);
-app.use("/api/v1/transaction", transactionRoute);
-app.use("/api/v1/fraud-alert", fraudRoute);
-
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/portfolios", portfolioRoutes);
+app.use("/api/v1/transactions", transactionRoutes);
+app.use("/api/v1/fraud-alerts", fraudRoutes);
+app.use("/api/v1/stocks", stockRoutes);
+app.use("/api/v1/predictions", predictionRoutes);
+app.use("/api/v1/recommendations", rocommendationRoutes);
+app.use("/api/v1//expense-forecasts", expenseForcastsRoutes);
+app.use("/api/v1/reports", reportRoutes);
 
 module.exports = app;

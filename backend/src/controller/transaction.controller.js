@@ -5,37 +5,60 @@ const mongoose = require('mongoose')
 const FraudAlert = require('../models/fraudAlert.model')
 
 const addTransaction = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { type, amount, category, description } = req.body;
-    if ((!type || !amount, !category)) {
-      return res
-        .status(400)
-        .json(new ApiResponse(400, "All fields are required"));
-    }
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json(new ApiResponse(404, "User not found"));
-    }
+    try {
+        const userId = req.user._id;
+        const { type, amount, category, description } = req.body;
 
-    const transactions = await Transaction.create({
-      userId,
-      type,
-      amount,
-      category,
-      description,
-    });
+        if (!type || !amount || !category) {
+            return res
+                .status(400)
+                .json(new ApiResponse(400, "All fields are required"));
+        }
 
-    return res
-      .status(201)
-      .json(
-        new ApiResponse(201, "Transaction created successfully", transactions),
-      );
-  } catch (error) {
-    return res
-      .status(500)
-      .json(new ApiResponse(500, `Internal server error ${error.message}`));
-  }
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res
+                .status(404)
+                .json(new ApiResponse(404, "User not found"));
+        }
+
+        const transaction = await Transaction.create({
+            userId,
+            type,
+            amount,
+            category,
+            description,
+        });
+
+        // Backend automatically performs fraud detection
+        const fraudAlert = await checkFraud(transaction);
+
+        return res
+            .status(201)
+            .json(
+                new ApiResponse(
+                    201,
+                    "Transaction created successfully",
+                    {
+                        transaction,
+                        fraudAlert,
+                    }
+                )
+            );
+
+    } catch (error) {
+        console.error("addTransaction error:", error);
+
+        return res
+            .status(500)
+            .json(
+                new ApiResponse(
+                    500,
+                    `Internal server error: ${error.message}`
+                )
+            );
+    }
 };
 
 const getAllTransactions = async (req, res) => {
@@ -152,7 +175,7 @@ const getTransactionById = async (req, res) => {
     }
     return res
       .status(200)
-      .json(new ApiResponse(200, "Transaction fetched successfully"));
+      .json(new ApiResponse(200, "Transaction fetched successfully", transaction));
   } catch (error) {
     return res.status(500).json(new ApiResponse(500, "Internal server error"));
   }
@@ -167,7 +190,7 @@ const updateTransactionDetails = async (req, res) => {
   }
   try {
     const { id } = req.params;
-    const transaction = await Transaction.findOneAndUpdate(
+    const transaction = await Transaction.findOneAndReplace(
       {
         _id: id,
         userId: req.user._id,
@@ -191,7 +214,7 @@ const updateTransactionDetails = async (req, res) => {
 const deleteTransaction = async(req, res) => {
     try {
         const {id} = req.params
-        const transaction = await Transaction.findOneAndDelete(
+        await Transaction.findOneAndDelete(
             {
                 _id: id, userId: req.user._id
             },
@@ -268,7 +291,7 @@ const getTransactionSummary = async (req, res) => {
       }),
     );
   } catch (error) {
-    console.error(error);
+    console.error("getTransactionSummary ERROR:", error);
     return res.status(500).json(new ApiResponse(500, "Internal server error"));
   }
 };
@@ -278,47 +301,36 @@ const getTransactionSummary = async (req, res) => {
 // Manually (re-)trigger fraud scoring on a transaction.
 // Internal/admin use — gated by role check.
 // ────────────────────────────────────────────────────────────
-const checkFraud = async (req, res) => {
-  try {
-    if (req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json(new ApiResponse(403, "Admin access required"));
-    }
- 
-    const { id } = req.params;
-    const transaction = await Transaction.findById(id);
- 
+const checkFraud = async (transaction) => {
     if (!transaction) {
-      return res
-        .status(404)
-        .json(new ApiResponse(404, "Transaction not found"));
+        throw new Error("Transaction not found");
     }
- 
+
     const riskScore = await computeFraudScore(transaction);
-    const status = riskScore >= 0.7 ? "flagged" : "cleared";
- 
-    // upsert: update the existing alert for this transaction, or create one
+
+    const status = (riskScore >= 0.7) ? "CONFIRMED": "PENDING";
+
     const fraudAlert = await FraudAlert.findOneAndUpdate(
-      { transactionId: transaction._id },
-      { riskScore, status, createdAt: new Date() },
-      { upsert: true, new: true },
+        { transactionId: transaction._id },
+        {
+            riskScore,
+            status,
+        },
+        {
+            upsert: true,
+            new: true,
+            runValidators: true,
+        }
     );
- 
-    return res
-      .status(200)
-      .json(new ApiResponse(200, "Fraud check completed", { fraudAlert }));
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json(new ApiResponse(500, "Internal server error"));
-  }
+
+    return fraudAlert;
 };
  
 const computeFraudScore = async (transaction) => {
   let score = 0;
  
   if (transaction.amount > 100000) score += 0.4;
-  if (transaction.type === "expense" && transaction.amount > 50000) score += 0.2;
+  if (transaction.type === "expense" && transaction.amount > 50000) score += 0.5;
  
   // e.g. flag transactions made at unusual hours, rapid repeats, etc.
   // this is where you'd call out to an actual ML model/service

@@ -7,7 +7,7 @@ const {
   generatePrediction,
   getPredictionById,
   getLatestPredictions,
-} = require("../controller/prediction.controller");
+} = require("../controller/stocks/prediction.controller");
 const verifyJWT = require("../middleware/auth.middleware");
 
 router.use(verifyJWT); // predictions are a paid/logged-in feature — adjust if you want public reads

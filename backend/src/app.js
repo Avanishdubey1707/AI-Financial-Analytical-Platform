@@ -13,7 +13,7 @@ const fraudRoutes = require("./routes/fraud.route");
 const stockRoutes = require("./routes/stock.route");
 const predictionRoutes = require("./routes/prediction.route");
 const rocommendationRoutes = require("./routes/recommendation.route");
-const expenseForcastsRoutes = require("./routes/expenseForcasts.route");
+const expenseForecastRoutes = require("./routes/expenseForecast.route");
 const reportRoutes = require("./routes/report.routes");
 
 app.use("/api/v1/users", userRoutes);
@@ -23,7 +23,7 @@ app.use("/api/v1/fraud-alerts", fraudRoutes);
 app.use("/api/v1/stocks", stockRoutes);
 app.use("/api/v1/predictions", predictionRoutes);
 app.use("/api/v1/recommendations", rocommendationRoutes);
-app.use("/api/v1//expense-forecasts", expenseForcastsRoutes);
+app.use("/api/v1//expense-forecasts", expenseForecastRoutes);
 app.use("/api/v1/reports", reportRoutes);
 
 module.exports = app;

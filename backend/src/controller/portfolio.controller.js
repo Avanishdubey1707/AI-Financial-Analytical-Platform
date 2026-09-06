@@ -1,7 +1,7 @@
 const Portfolio = require("../models/portfolio.model");
-const Holding = require("../models/holding.model");
-const Stock = require("../models/stock.model");
-const StockPrice = require("../models/stockPrice.model");
+const Holding = require("../models/stocksModel/Holding.model");
+const Stock = require("../models/stocksModel/stock.model");
+const StockPrice = require("../models/stocksModel/stockPrice.model");
 const ApiResponse = require("../utils/ApiResponse");
 
 /**

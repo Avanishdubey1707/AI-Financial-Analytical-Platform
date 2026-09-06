@@ -6,7 +6,7 @@ const verifyJWT= async (req, res, next) => {
         const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
         if(!token)
             throw new Error("Unauthorized request")
-        const decodedToken = await jwt.verify(
+        const decodedToken = jwt.verify(
             token, 
             process.env.JWT_ACCESS_TOKEN_SECRET
         )

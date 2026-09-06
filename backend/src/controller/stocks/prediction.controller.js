@@ -1,7 +1,7 @@
-const Stock = require("../models/stock.model");
-const StockPrice = require("../models/stockPrice.model");
-const Prediction = require("../models/prediction.model");
-const ApiResponse = require("../utils/ApiResponse");
+const Stock = require("../../models/stocksModel/stock.model");
+const StockPrice = require("../../models/stocksModel/stockPrice.model");
+const Prediction = require("../../models/stocksModel/prediction.model");
+const ApiResponse = require("../../utils/ApiResponse");
 
 // ────────────────────────────────────────────────────────────
 // GET /stocks/:symbol/predictions

@@ -17,13 +17,16 @@ router.route("/")
     .get(getAllTransactions)
     .post(addTransaction);
 
+router.route("/summary").get(getTransactionSummary);
+
+
 router
   .route("/:id")
   .get(getTransactionById)
   .put(updateTransactionDetails)
   .delete(deleteTransaction);
 
-router.route("/summary").get(getTransactionSummary);
+
 
 router.route("/:id/check-fraud").get(checkFraud);
 

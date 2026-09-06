@@ -1,6 +1,6 @@
-const Stock = require("../models/stock.model");
-const StockPrice = require("../models/stockPrice.model");
-const ApiResponse = require("../utils/ApiResponse");
+const Stock = require("../../models/stocksModel/stock.model");
+const StockPrice = require("../../models/stocksModel/stockPrice.model");
+const ApiResponse = require("../../utils/ApiResponse");
 
 // ────────────────────────────────────────────────────────────
 // GET /stocks
@@ -152,11 +152,13 @@ const getLatestStockPrice = async (req, res) => {
 // ────────────────────────────────────────────────────────────
 const addStockPrice = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json(new ApiResponse(403, "Admin access required"));
-    }
+
+    // if (req.user.role !== "admin") {
+    //   return res
+    //     .status(403)
+    //     .json(new ApiResponse(403, "Admin access required"));
+    // }
+    
 
     const { symbol } = req.params;
     const { date, open, close, high, low, volume } = req.body;

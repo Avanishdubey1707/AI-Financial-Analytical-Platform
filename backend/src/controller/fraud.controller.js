@@ -2,7 +2,7 @@ const Transaction = require("../models/transaction.model");
 const FraudAlert = require("../models/fraudAlert.model");
 const ApiResponse = require("../utils/ApiResponse");
 
-const ALLOWED_STATUSES = ['PENDING', 'REVIEWED', 'CONFIRMED', DISMISSED];
+const ALLOWED_STATUSES = ['PENDING', 'REVIEWED', 'CONFIRMED', 'DISMISSED'];
 
 /**
  * FraudAlert only stores transactionId, not userId directly (per the ERD),

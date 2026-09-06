@@ -1,6 +1,5 @@
 const express = require("express");
 const router = express.Router();
-const auth = require("../middlewares/auth.middleware"); // sets req.user
 
 const {
   getAllPortfolios,
@@ -24,14 +23,14 @@ router.route("/").get(getAllPortfolios).post(createPortfolio);
 router
   .route("/:id")
   .get(getPortfolioById)
-  .put(updatePortfolio)
+  .patch(updatePortfolio)
   .delete(deletePortfolio);
 
 router.route("/:id/holdings").get(getAllPortfolioHoldings).post(addHolding);
 
 router
   .route("/:id/holdings/:holdingId")
-  .put(updateHolding)
+  .patch(updateHolding)
   .delete(deleteHolding);
 
 router.get("/:id/value", getPortfolioValue);

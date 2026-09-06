@@ -6,7 +6,7 @@ const {
   generateExpenseForecasts,
   getExpenseForecastById,
   getExpenseForecastSummary,
-} = require("../controllers/expenseForecast.controller");
+} = require("../controller/expenseForecast.controller");
 const verifyJWT = require("../middleware/auth.middleware");
 
 router.use(verifyJWT);

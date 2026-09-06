@@ -7,7 +7,7 @@ const {
   getReportById,
   downloadReport,
   deleteReport,
-} = require("../controllers/report.controller");
+} = require("../controller/report.controller");
 const verifyJWT = require("../middleware/auth.middleware");
 
 router.use(verifyJWT);

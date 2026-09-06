@@ -55,7 +55,6 @@ const registerUser = async (req, res) => {
 
 const loginUser = async (req, res) => {
   try {
-    console.log(req.body);
     const { email, password } = req.body;
     if (!email || !password) {
       return res
@@ -124,30 +123,49 @@ const logoutUser = async (req, res) => {
 
 const refreshAccessToken = async (req, res) => {
   try {
-    const refToken = req.cookies.refreshToken || req.body;
-    if (!refToken) {
+    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+
+    console.log("refresh token:", refreshToken);
+
+    if (!refreshToken) {
       return res
-        .status(400)
-        .json(new ApiResponse(400, "Refresh token is required"));
+        .status(401)
+        .json(new ApiResponse(401, "Refresh token is required"));
     }
-    const user = await User.findOne({ refreshToken: refToken._id });
+
+    // Verify refresh token
+    const decodedToken = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_TOKEN_SECRET,
+    );
+
+    // Find user using ID from token
+    const user = await User.findById(decodedToken._id);
+
     if (!user) {
       return res.status(404).json(new ApiResponse(404, "User not found"));
     }
+
+    // Check whether this refresh token is the one stored for this user
+    if (user.refreshToken !== refreshToken) {
+      return res
+        .status(401)
+        .json(new ApiResponse(401, "Invalid refresh token"));
+    }
+
     const accessToken = user.generateAccessToken();
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(200, "Access token refreshed successfully", {
-          accessToken,
-        }),
-      );
+
+    return res.status(200).json(
+      new ApiResponse(200, "Access token refreshed successfully", {
+        accessToken,
+      }),
+    );
   } catch (error) {
+    console.log("Error:", error.message);
+
     return res
-      .status(500)
-      .json(
-        new ApiResponse(500, "Error occurred while refreshing access token"),
-      );
+      .status(401)
+      .json(new ApiResponse(401, "Invalid or expired refresh token"));
   }
 };
 
@@ -182,7 +200,7 @@ const changePassword = async (req, res) => {
 
 const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findOne({ _id: req.user._id });
+    const user = await User.findOne({ _id: req.user._id }).select("-password -refreshToken");
     if (!user) {
       return res.status(404).json(new ApiResponse(404, "User not found"));
     }

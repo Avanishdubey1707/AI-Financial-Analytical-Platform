@@ -5,6 +5,10 @@ app.use(cors(["*"]));
 // Middleware to parse JSON requests
 app.use(express.json({ limit: "50mb" }));
 
+app.get("/", (req, res) => {
+    res.json({msg: "Your website working"})
+})
+
 // All Routes
 const userRoutes = require("./routes/user.route");
 const portfolioRoutes = require("./routes/portfolio.route");

@@ -5,7 +5,7 @@ const Prediction = require("../models/stocksModel/prediction.model");
 const StockPrice = require("../models/stocksModel/stockPrice.model");
 const ApiResponse = require("../utils/ApiResponse");
 const ml = require("../utils/mlClient");
-const { sendMlError } = require("../utils/mlErrors");
+const { sendMlError } = require("../utils/mlError");
 
 // ────────────────────────────────────────────────────────────
 // GET /recommendations

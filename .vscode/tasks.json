@@ -1,0 +1,64 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "mkdir-check",
+			"type": "shell",
+			"command": "mkdir -p C:\\Users\\AVANISH\\Desktop\\stock_prediction\\tmpdir && echo ok",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "init-project",
+			"type": "shell",
+			"command": "mkdir -p config data/historical data/processed models predictions backtesting/results backtesting/reports src scripts tests",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "init-project-2",
+			"type": "shell",
+			"command": "New-Item -ItemType Directory -Force -Path @('config','data/historical','data/processed','models','predictions','backtesting/results','backtesting/reports','src','scripts','tests') | Out-Null; Write-Host 'done'",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "pytest-basic",
+			"type": "shell",
+			"command": "C:/Users/AVANISH/AppData/Local/Programs/Python/Python311/python.exe -m pytest tests/test_basic.py -q",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "py-check",
+			"type": "shell",
+			"command": "C:/Users/AVANISH/AppData/Local/Programs/Python/Python311/python.exe -c \"import sys; print(sys.executable); import site; print(site.getsitepackages()); import pytest; print(pytest.__version__)\"",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "py-check-2",
+			"type": "shell",
+			"command": "& 'C:\\Users\\AVANISH\\AppData\\Local\\Programs\\Python\\Python311\\python.exe' -c 'import sys; print(sys.executable); import pytest; print(pytest.__version__)'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "pytest-install-check",
+			"type": "shell",
+			"command": "& 'C:\\Users\\AVANISH\\AppData\\Local\\Programs\\Python\\Python311\\python.exe' -m pip install pytest",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "install-deps",
+			"type": "shell",
+			"command": "& 'C:\\Users\\AVANISH\\AppData\\Local\\Programs\\Python\\Python311\\python.exe' -m pip install numpy pandas torch yfinance pydantic",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}

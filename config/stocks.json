@@ -1,0 +1,16 @@
+{
+  "universe_name": "manually configured Top 10 universe",
+  "description": "This universe is explicitly configured by the product team and should be reviewed whenever the portfolio is refreshed.",
+  "stocks": [
+    {"symbol": "RELIANCE.NS", "name": "Reliance Industries"},
+    {"symbol": "TCS.NS", "name": "Tata Consultancy Services"},
+    {"symbol": "HDFCBANK.NS", "name": "HDFC Bank"},
+    {"symbol": "INFY.NS", "name": "Infosys"},
+    {"symbol": "ICICIBANK.NS", "name": "ICICI Bank"},
+    {"symbol": "ITC.NS", "name": "ITC"},
+    {"symbol": "SBIN.NS", "name": "State Bank of India"},
+    {"symbol": "LTIM.NS", "name": "LTIMindtree"},
+    {"symbol": "KOTAKBANK.NS", "name": "Kotak Mahindra Bank"},
+    {"symbol": "SUNPHARMA.NS", "name": "Sun Pharmaceuticals"}
+  ]
+}

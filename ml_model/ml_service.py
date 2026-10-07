@@ -7,7 +7,7 @@ Keep it on a private network / localhost and (optionally) protect it with ML_API
 """
 import os
 from typing import Any, Dict, List, Optional
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from ml.fraud_detection import score_transaction
@@ -18,9 +18,20 @@ from ml.expense_forecast import forecast_expenses, forecast_vs_actual
 API_KEY = os.getenv("ML_API_KEY")  # if set, Node must send header  x-api-key
 
 
-def check_key(x_api_key: Optional[str] = Header(default=None)):
+def check_key(
+    request: Request,
+    x_api_key: Optional[str] = Header(default=None)
+):
+    # Allow health check without API key
+    if request.url.path == "/health":
+        return
+
+    # Protect everything else
     if API_KEY and x_api_key != API_KEY:
-        raise HTTPException(401, "Invalid API key")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key"
+        )
 
 
 app = FastAPI(title="AI Financial Analytics - ML service", dependencies=[Depends(check_key)])

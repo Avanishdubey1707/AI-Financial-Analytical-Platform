@@ -4,6 +4,8 @@ const Portfolio = require("../models/portfolio.model");
 const Prediction = require("../models/stocksModel/prediction.model");
 const StockPrice = require("../models/stocksModel/stockPrice.model");
 const ApiResponse = require("../utils/ApiResponse");
+const ml = require("../utils/mlClient");
+const { sendMlError } = require("../utils/mlErrors");
 
 // ────────────────────────────────────────────────────────────
 // GET /recommendations
@@ -43,17 +45,49 @@ const getAllRecommendations = async (req, res) => {
   }
 };
 
+
+const RISK_PROFILES = ["conservative", "moderate", "aggressive"];
+const MAX_PREDICTION_AGE_DAYS = 7; // used only when a prediction has no targetDate
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// confidence may be stored as 0-1 or 0-100; the engine expects 0-1
+const normalizeConfidence = (c) => {
+  const n = Number(c);
+  if (!Number.isFinite(n)) return 0.5;
+  return Math.min(Math.max(n > 1 ? n / 100 : n, 0), 1);
+};
+
+// calendar days between prediction and target -> approx. trading days
+const horizonInTradingDays = (p) => {
+  if (p.targetDate && p.predictionDate) {
+    const days = (new Date(p.targetDate) - new Date(p.predictionDate)) / DAY_MS;
+    if (days > 0) return Math.max(1, Math.round((days * 5) / 7));
+  }
+  return Number(p.horizonDays) || 5;
+};
+
+// an old prediction should not drive a buy/sell suggestion today
+const isStale = (p, now) => {
+  if (p.targetDate) return new Date(p.targetDate) < now;
+  return (now - new Date(p.predictionDate)) / DAY_MS > MAX_PREDICTION_AGE_DAYS;
+};
+
 // ────────────────────────────────────────────────────────────
 // POST /recommendations/generate
-// Run the recommendation engine for the logged-in user, combining
-// their current holdings with the latest predictions, and persist
-// the results.
+// Body (optional): { riskProfile: "conservative" | "moderate" | "aggressive" }
 // ────────────────────────────────────────────────────────────
 const generateRecommendations = async (req, res) => {
   try {
-    // gather all stock symbols the user currently holds, across all portfolios
+    const riskProfile = req.body?.riskProfile ?? "moderate";
+    if (!RISK_PROFILES.includes(riskProfile)) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, `riskProfile must be one of: ${RISK_PROFILES.join(", ")}`));
+    }
+
+    // all holdings across all of the user's portfolios
     const portfolios = await Portfolio.find({ userId: req.user.id }).distinct("_id");
-    const holdings = await Holding.find({ portfolioId: { $in: portfolios } });
+    const holdings = await Holding.find({ portfolioId: { $in: portfolios } }).lean();
 
     if (holdings.length === 0) {
       return res
@@ -63,9 +97,26 @@ const generateRecommendations = async (req, res) => {
         );
     }
 
-    const symbols = [...new Set(holdings.map((h) => h.stockSymbol))];
+    // the same stock can sit in several portfolios -> merge into ONE position per symbol
+    // (otherwise the engine would give duplicate recommendations for it)
+    const merged = new Map();
+    for (const h of holdings) {
+      const m = merged.get(h.stockSymbol) || { quantity: 0, cost: 0 };
+      m.quantity += h.quantity;
+      m.cost += h.quantity * h.avgPrice;
+      merged.set(h.stockSymbol, m);
+    }
+    const symbols = [...merged.keys()];
+    const mlHoldings = symbols.map((sym) => {
+      const m = merged.get(sym);
+      return {
+        stock_symbol: sym,
+        quantity: m.quantity,
+        avg_price: m.quantity > 0 ? m.cost / m.quantity : 0,
+      };
+    });
 
-    // get the latest prediction per held symbol
+    // latest stored prediction per symbol
     const latestPredictions = await Prediction.aggregate([
       { $match: { stockSymbol: { $in: symbols } } },
       { $sort: { predictionDate: -1 } },
@@ -74,7 +125,7 @@ const generateRecommendations = async (req, res) => {
     ]);
     const predictionMap = new Map(latestPredictions.map((p) => [p.stockSymbol, p]));
 
-    // get the latest actual price per held symbol
+    // latest actual close per symbol
     const latestPrices = await StockPrice.aggregate([
       { $match: { stockSymbol: { $in: symbols } } },
       { $sort: { date: -1 } },
@@ -82,35 +133,64 @@ const generateRecommendations = async (req, res) => {
     ]);
     const priceMap = new Map(latestPrices.map((p) => [p._id, p.close]));
 
-    const newRecommendations = [];
+    // build the engine's `predictions` input
+    const now = new Date();
+    const predictions = {};
+    let usablePredictions = 0;
+    for (const sym of symbols) {
+      const price = priceMap.get(sym);
+      if (!(price > 0)) continue; // no market price -> engine falls back to avg price
 
-    for (const holding of holdings) {
-      const prediction = predictionMap.get(holding.stockSymbol);
-      const currentPrice = priceMap.get(holding.stockSymbol);
-
-      if (!prediction || currentPrice == null) continue; // not enough data for this stock
-
-      const { action, reason } = buildRecommendation({
-        currentPrice,
-        predictedPrice: prediction.predictedPrice,
-        avgPrice: holding.avgPrice,
-      });
-
-      if (action === "hold") continue; // don't bother storing neutral recommendations
-
-      newRecommendations.push({
-        userId: req.user.id,
-        stockSymbol: holding.stockSymbol,
-        reason,
-        createdAt: new Date(),
-      });
+      const p = predictionMap.get(sym);
+      if (p && Number.isFinite(p.predictedPrice) && !isStale(p, now)) {
+        usablePredictions++;
+        predictions[sym] = {
+          current_price: price,
+          predicted_return_pct: (p.predictedPrice / price - 1) * 100,
+          confidence: normalizeConfidence(p.confidence),
+          horizon_days: horizonInTradingDays(p),
+        };
+      } else {
+        // neutral placeholder: keeps the position's value correct for the
+        // concentration check but gives no buy/sell signal of its own
+        predictions[sym] = {
+          current_price: price,
+          predicted_return_pct: 0,
+          confidence: 0,
+          horizon_days: 5,
+        };
+      }
     }
+
+    if (usablePredictions === 0) {
+      return res.status(200).json(
+        new ApiResponse(200, "No fresh predictions for your holdings — generate predictions first", {
+          recommendations: [],
+        }),
+      );
+    }
+
+    // ── AI MODEL CALL ────────────────────────────────────────
+    const results = await ml.recommend(mlHoldings, predictions, riskProfile);
+    // ─────────────────────────────────────────────────────────
+
+    // don't store neutral suggestions
+    const newRecommendations = results
+      .filter((r) => r.action !== "HOLD")
+      .map((r) => ({
+        userId: req.user.id,
+        stockSymbol: r.stock_symbol,
+        reason: r.reasoning,
+        createdAt: new Date(),
+        // add these to your Recommendation schema, otherwise Mongoose silently drops them:
+        action: r.action, // "BUY" | "SELL" | "REDUCE"
+        confidence: r.confidence,
+        expectedReturnPct: r.expected_return_pct,
+      }));
 
     if (newRecommendations.length === 0) {
       return res.status(200).json(
-        new ApiResponse(200, "No new recommendations at this time", {
-          recommendations: [],
-        }),
+        new ApiResponse(200, "No new recommendations at this time", { recommendations: [] }),
       );
     }
 
@@ -120,38 +200,10 @@ const generateRecommendations = async (req, res) => {
       .status(201)
       .json(new ApiResponse(201, "Recommendations generated", { recommendations: created }));
   } catch (error) {
-    console.error(error);
-    return res.status(500).json(new ApiResponse(500, "Internal server error"));
+    return sendMlError(res, error, ApiResponse);
   }
 };
 
-/**
- * Simple rules-based recommendation logic — swap this out for a call to
- * a real recommendation model if you have one. Compares the predicted
- * price against the current price and the user's cost basis.
- */
-const buildRecommendation = ({ currentPrice, predictedPrice, avgPrice }) => {
-  const expectedChangePercent = ((predictedPrice - currentPrice) / currentPrice) * 100;
-
-  if (expectedChangePercent >= 5) {
-    return {
-      action: "buy_more",
-      reason: `Model predicts a ${expectedChangePercent.toFixed(1)}% upside from the current price — consider increasing your position.`,
-    };
-  }
-
-  if (expectedChangePercent <= -5) {
-    const gainLossPercent = ((currentPrice - avgPrice) / avgPrice) * 100;
-    return {
-      action: "sell",
-      reason: `Model predicts a ${Math.abs(expectedChangePercent).toFixed(1)}% downside. You are currently ${
-        gainLossPercent >= 0 ? "up" : "down"
-      } ${Math.abs(gainLossPercent).toFixed(1)}% on this position — consider reducing exposure.`,
-    };
-  }
-
-  return { action: "hold", reason: "" };
-};
 
 // ────────────────────────────────────────────────────────────
 // GET /recommendations/:id

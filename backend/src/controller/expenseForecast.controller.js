@@ -1,6 +1,8 @@
 const Transaction = require("../models/transaction.model");
 const ExpenseForecast = require("../models/expenseForecast.model");
 const ApiResponse = require("../utils/ApiResponse");
+const ml = require("../utils/mlClient"); // adjust the path to where you put mlClient.js
+
 
 // ────────────────────────────────────────────────────────────
 // GET /expense-forecasts
@@ -20,7 +22,10 @@ const getAllExpenseForecasts = async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     const [forecasts, total] = await Promise.all([
-      ExpenseForecast.find(filter).sort({ month: -1 }).skip(skip).limit(limitNum),
+      ExpenseForecast.find(filter)
+        .sort({ month: -1 })
+        .skip(skip)
+        .limit(limitNum),
       ExpenseForecast.countDocuments(filter),
     ]);
 
@@ -41,6 +46,7 @@ const getAllExpenseForecasts = async (req, res) => {
   }
 };
 
+
 // ────────────────────────────────────────────────────────────
 // POST /expense-forecasts/generate
 // Run the forecasting model on the user's transaction history
@@ -49,50 +55,64 @@ const getAllExpenseForecasts = async (req, res) => {
 // ────────────────────────────────────────────────────────────
 const generateExpenseForecasts = async (req, res) => {
   try {
-    const { monthsOfHistory = 6, monthsToForecast = 1 } = req.body;
+    const { monthsOfHistory = 12, monthsToForecast = 1 } = req.body;
 
-    const since = new Date();
-    since.setMonth(since.getMonth() - monthsOfHistory);
+    // start from the 1st of the month so the oldest month is complete
+    // (a mid-month cutoff would give the model a partial month and skew the trend)
+    const now = new Date();
+    const since = new Date(
+      now.getFullYear(),
+      now.getMonth() - monthsOfHistory,
+      1,
+    );
 
     const transactions = await Transaction.find({
       userId: req.user.id,
       type: "expense",
       date: { $gte: since },
-    }).sort({ date: 1 });
+    })
+      .sort({ date: 1 })
+      .lean();
 
     if (transactions.length === 0) {
       return res
         .status(422)
         .json(
-          new ApiResponse(422, "Not enough transaction history to generate a forecast"),
+          new ApiResponse(
+            422,
+            "Not enough transaction history to generate a forecast",
+          ),
         );
     }
 
-    // group historical spend by category and by month, so the model
-    // gets a clean time series per category rather than a flat list
-    const historyByCategory = groupSpendByCategoryAndMonth(transactions);
-
     // ── AI MODEL CALL ────────────────────────────────────────
-    // This is the single place the forecasting model is invoked.
-    // Swap runExpenseForecastModel()'s internals for a real call
-    // (HTTP request to your ML service, a hosted LLM/forecast API,
-    // a Python microservice, etc.) without touching anything above
-    // or below this line.
-    const forecastResults = await runExpenseForecastModel(historyByCategory, {
-      monthsToForecast,
-    });
-    // ─────────────────────────────────────────────────────────
-
-    // persist one ExpenseForecast row per {category, forecasted month}
-    const docsToInsert = forecastResults.map((f) => ({
-      userId: req.user.id,
-      month: f.month, // e.g. "2026-10"
-      category: f.category,
-      predictedAmount: f.predictedAmount,
+    // The Python service groups spend by category and month itself,
+    // so we only send plain transaction rows.
+    const payload = transactions.map((t) => ({
+      type: t.type,
+      amount: t.amount,
+      category: t.category,
+      date: new Date(t.date).toISOString(),
     }));
 
-    // upsert each so re-running "generate" for the same month/category
-    // updates the forecast instead of creating duplicates
+    const forecastResults = await ml.forecastExpenses(
+      payload,
+      monthsToForecast,
+    );
+    // ─────────────────────────────────────────────────────────
+
+    // The service also returns a "TOTAL" row per month; skip it because
+    // your ExpenseForecast documents are per category.
+    const docsToInsert = forecastResults
+      .filter((f) => f.category !== "TOTAL")
+      .map((f) => ({
+        userId: req.user.id,
+        month: f.month.slice(0, 7), // "2026-10-01" -> "2026-10"
+        category: f.category,
+        predictedAmount: f.predicted_amount,
+      }));
+
+    // upsert so re-running "generate" updates instead of duplicating
     const saved = await Promise.all(
       docsToInsert.map((doc) =>
         ExpenseForecast.findOneAndUpdate(
@@ -105,83 +125,36 @@ const generateExpenseForecasts = async (req, res) => {
 
     return res
       .status(201)
-      .json(new ApiResponse(201, "Expense forecasts generated", { forecasts: saved }));
+      .json(
+        new ApiResponse(201, "Expense forecasts generated", {
+          forecasts: saved,
+        }),
+      );
   } catch (error) {
     console.error(error);
+
+    // the ML service answered with a validation problem (e.g. too little history)
+    if (error.status === 422) {
+      return res.status(422).json(new ApiResponse(422, error.message));
+    }
+    // the ML service is down, unreachable or timed out
+    if (
+      !error.status &&
+      (error.name === "TimeoutError" ||
+        error.cause ||
+        error.name === "TypeError")
+    ) {
+      return res
+        .status(503)
+        .json(
+          new ApiResponse(503, "Forecasting service is currently unavailable"),
+        );
+    }
     return res.status(500).json(new ApiResponse(500, "Internal server error"));
   }
 };
 
-/**
- * Reshapes raw transactions into:
- *   { [category]: [{ month: "2026-07", total: 1234.56 }, ...], ... }
- * sorted chronologically per category — this is the "features" the
- * model consumes.
- */
-const groupSpendByCategoryAndMonth = (transactions) => {
-  const grouped = {};
 
-  for (const tx of transactions) {
-    const monthKey = tx.date.toISOString().slice(0, 7); // "YYYY-MM"
-    if (!grouped[tx.category]) grouped[tx.category] = {};
-    grouped[tx.category][monthKey] = (grouped[tx.category][monthKey] || 0) + tx.amount;
-  }
-
-  const result = {};
-  for (const [category, monthTotals] of Object.entries(grouped)) {
-    result[category] = Object.entries(monthTotals)
-      .sort(([a], [b]) => (a > b ? 1 : -1))
-      .map(([month, total]) => ({ month, total }));
-  }
-
-  return result;
-};
-
-/**
- * ── PLACEHOLDER — REPLACE WITH YOUR REAL MODEL CALL ──────────
- *
- * Input:  historyByCategory -> { category: [{month, total}, ...], ... }
- *         options.monthsToForecast -> how many months ahead to predict
- *
- * Output: an array of { category, month, predictedAmount }
- *
- * Example of what a real integration might look like:
- *
- *   const response = await fetch(process.env.FORECAST_MODEL_URL, {
- *     method: "POST",
- *     headers: { "Content-Type": "application/json" },
- *     body: JSON.stringify({ historyByCategory, monthsToForecast: options.monthsToForecast }),
- *   });
- *   const data = await response.json();
- *   return data.forecasts; // already in the { category, month, predictedAmount } shape
- *
- * Until that's wired up, this stub does a simple moving-average
- * projection per category so the endpoint is fully functional.
- */
-const runExpenseForecastModel = async (historyByCategory, options) => {
-  const { monthsToForecast } = options;
-  const forecasts = [];
-
-  const now = new Date();
-
-  for (const [category, series] of Object.entries(historyByCategory)) {
-    const totals = series.map((s) => s.total);
-    const avg = totals.reduce((sum, v) => sum + v, 0) / totals.length;
-
-    for (let i = 1; i <= monthsToForecast; i++) {
-      const targetDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const monthKey = targetDate.toISOString().slice(0, 7);
-
-      forecasts.push({
-        category,
-        month: monthKey,
-        predictedAmount: Number(avg.toFixed(2)),
-      });
-    }
-  }
-
-  return forecasts;
-};
 
 // ────────────────────────────────────────────────────────────
 // GET /expense-forecasts/:id
@@ -202,7 +175,9 @@ const getExpenseForecastById = async (req, res) => {
         .json(new ApiResponse(403, "You do not have access to this forecast"));
     }
 
-    return res.status(200).json(new ApiResponse(200, "Forecast fetched", { forecast }));
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "Forecast fetched", { forecast }));
   } catch (error) {
     console.error(error);
     return res.status(500).json(new ApiResponse(500, "Internal server error"));
@@ -243,7 +218,9 @@ const getExpenseForecastSummary = async (req, res) => {
     ]);
 
     const actualMap = new Map(actuals.map((a) => [a._id, a.actualAmount]));
-    const forecastMap = new Map(forecasts.map((f) => [f.category, f.predictedAmount]));
+    const forecastMap = new Map(
+      forecasts.map((f) => [f.category, f.predictedAmount]),
+    );
 
     const categories = new Set([...actualMap.keys(), ...forecastMap.keys()]);
 
@@ -257,7 +234,9 @@ const getExpenseForecastSummary = async (req, res) => {
         predictedAmount,
         actualAmount,
         variance,
-        variancePercent: predictedAmount ? (variance / predictedAmount) * 100 : null,
+        variancePercent: predictedAmount
+          ? (variance / predictedAmount) * 100
+          : null,
       };
     });
 

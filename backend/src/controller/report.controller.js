@@ -6,8 +6,8 @@ const Holding = require("../models/stocksModel/Holding.model");
 const Transaction = require("../models/transaction.model");
 const FraudAlert = require("../models/fraudAlert.model");
 // adjust these three paths to where your models actually live
-const Prediction = require("../models/stocksModel/Prediction.model");
-const StockPrice = require("../models/stocksModel/StockPrice.model");
+const Prediction = require("../models/stocksModel/prediction.model");
+const StockPrice = require("../models/stocksModel/stockPrice.model");
 const ExpenseForecast = require("../models/expenseForecast.model");
 const ApiResponse = require("../utils/ApiResponse");
 const ml = require("../utils/mlClient");

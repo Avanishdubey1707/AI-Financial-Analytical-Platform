@@ -1,116 +1,181 @@
-import axios from "axios";
+import apiClient from "./apiClient";
 
-const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "https://ai-powered-financial-analytics-and.onrender.com";
-
-const portfolioApi = axios.create({
-    baseURL: `${API_URL}/api/v1/portfolios`,
-    withCredentials: true,
-    headers: {
-        "Content-Type": "application/json",
-    },
-});
+// ============================================================
+// GET ALL PORTFOLIOS
+// GET /api/v1/portfolios
+// ============================================================
 
 export const getPortfolios = async () => {
-    const response = await portfolioApi.get("/");
+    const response = await apiClient.get(
+        "/portfolios"
+    );
+
     return response.data;
 };
+
+
+// ============================================================
+// CREATE PORTFOLIO
+// POST /api/v1/portfolios
+// ============================================================
 
 export const createPortfolio = async (data) => {
-    const response = await portfolioApi.post("/", data);
+    const response = await apiClient.post(
+        "/portfolios",
+        data
+    );
+
     return response.data;
 };
 
-export const getPortfolio = async (portfolioId) => {
-    const response = await portfolioApi.get(`/${portfolioId}`);
+
+// ============================================================
+// GET SINGLE PORTFOLIO
+// GET /api/v1/portfolios/:id
+// ============================================================
+
+export const getPortfolio = async (
+    portfolioId
+) => {
+    const response = await apiClient.get(
+        `/portfolios/${portfolioId}`
+    );
+
     return response.data;
 };
+
+
+// ============================================================
+// UPDATE PORTFOLIO
+// PATCH /api/v1/portfolios/:id
+// ============================================================
 
 export const updatePortfolio = async (
     portfolioId,
     data
 ) => {
-    const response = await portfolioApi.patch(
-        `/${portfolioId}`,
+    const response = await apiClient.patch(
+        `/portfolios/${portfolioId}`,
         data
     );
 
     return response.data;
 };
 
+
+// ============================================================
+// DELETE PORTFOLIO
+// DELETE /api/v1/portfolios/:id
+// ============================================================
+
 export const deletePortfolio = async (
     portfolioId
 ) => {
-    const response = await portfolioApi.delete(
-        `/${portfolioId}`
+    const response = await apiClient.delete(
+        `/portfolios/${portfolioId}`
     );
 
     return response.data;
 };
+
+
+// ============================================================
+// GET PORTFOLIO HOLDINGS
+// GET /api/v1/portfolios/:id/holdings
+// ============================================================
 
 export const getPortfolioHoldings = async (
     portfolioId
 ) => {
-    const response = await portfolioApi.get(
-        `/${portfolioId}/holdings`
+    const response = await apiClient.get(
+        `/portfolios/${portfolioId}/holdings`
     );
 
     return response.data;
 };
+
+
+// ============================================================
+// ADD HOLDING
+// POST /api/v1/portfolios/:id/holdings
+// ============================================================
 
 export const addHolding = async (
     portfolioId,
     data
 ) => {
-    const response = await portfolioApi.post(
-        `/${portfolioId}/holdings`,
+    const response = await apiClient.post(
+        `/portfolios/${portfolioId}/holdings`,
         data
     );
 
     return response.data;
 };
+
+
+// ============================================================
+// UPDATE HOLDING
+// PATCH /api/v1/portfolios/:id/holdings/:holdingId
+// ============================================================
 
 export const updateHolding = async (
     portfolioId,
     holdingId,
     data
 ) => {
-    const response = await portfolioApi.patch(
-        `/${portfolioId}/holdings/${holdingId}`,
+    const response = await apiClient.patch(
+        `/portfolios/${portfolioId}/holdings/${holdingId}`,
         data
     );
 
     return response.data;
 };
 
+
+// ============================================================
+// DELETE HOLDING
+// DELETE /api/v1/portfolios/:id/holdings/:holdingId
+// ============================================================
+
 export const deleteHolding = async (
     portfolioId,
     holdingId
 ) => {
-    const response = await portfolioApi.delete(
-        `/${portfolioId}/holdings/${holdingId}`
+    const response = await apiClient.delete(
+        `/portfolios/${portfolioId}/holdings/${holdingId}`
     );
 
     return response.data;
 };
+
+
+// ============================================================
+// GET PORTFOLIO VALUE
+// GET /api/v1/portfolios/:id/value
+// ============================================================
 
 export const getPortfolioValue = async (
     portfolioId
 ) => {
-    const response = await portfolioApi.get(
-        `/${portfolioId}/value`
+    const response = await apiClient.get(
+        `/portfolios/${portfolioId}/value`
     );
 
     return response.data;
 };
+
+
+// ============================================================
+// GET PORTFOLIO PERFORMANCE
+// GET /api/v1/portfolios/:id/performance
+// ============================================================
 
 export const getPortfolioPerformance = async (
     portfolioId,
     params = {}
 ) => {
-    const response = await portfolioApi.get(
-        `/${portfolioId}/performance`,
+    const response = await apiClient.get(
+        `/portfolios/${portfolioId}/performance`,
         {
             params,
         }
@@ -118,5 +183,3 @@ export const getPortfolioPerformance = async (
 
     return response.data;
 };
-
-export default portfolioApi;

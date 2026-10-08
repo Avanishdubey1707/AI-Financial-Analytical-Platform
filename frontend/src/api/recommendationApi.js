@@ -1,41 +1,62 @@
-import axios from "axios";
+import apiClient from "./apiClient";
 
-const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "https://ai-powered-financial-analytics-and.onrender.com";
-
-const recommendationApi = axios.create({
-    baseURL: `${API_URL}/api/v1/recommendations`,
-    withCredentials: true,
-    headers: {
-        "Content-Type": "application/json",
-    },
-});
+// ============================================================
+// GET ALL RECOMMENDATIONS
+// GET /api/v1/recommendations
+// ============================================================
 
 export const getRecommendations = async (params = {}) => {
-    const response = await recommendationApi.get("/", {
-        params,
-    });
+    const response = await apiClient.get(
+        "/recommendations",
+        {
+            params,
+        }
+    );
 
     return response.data;
 };
 
-export const generateRecommendations = async (data = {}) => {
-    const response = await recommendationApi.post("/generate", data);
+
+// ============================================================
+// GENERATE RECOMMENDATIONS
+// POST /api/v1/recommendations/generate
+// ============================================================
+
+export const generateRecommendations = async (
+    data = {}
+) => {
+    const response = await apiClient.post(
+        "/recommendations/generate",
+        data
+    );
 
     return response.data;
 };
+
+
+// ============================================================
+// GET SINGLE RECOMMENDATION
+// GET /api/v1/recommendations/:id
+// ============================================================
 
 export const getRecommendationById = async (id) => {
-    const response = await recommendationApi.get(`/${id}`);
+    const response = await apiClient.get(
+        `/recommendations/${id}`
+    );
 
     return response.data;
 };
+
+
+// ============================================================
+// DISMISS RECOMMENDATION
+// DELETE /api/v1/recommendations/:id
+// ============================================================
 
 export const dismissRecommendation = async (id) => {
-    const response = await recommendationApi.delete(`/${id}`);
+    const response = await apiClient.delete(
+        `/recommendations/${id}`
+    );
 
     return response.data;
 };
-
-export default recommendationApi;

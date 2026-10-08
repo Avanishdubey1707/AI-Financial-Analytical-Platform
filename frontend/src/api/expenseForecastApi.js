@@ -1,27 +1,13 @@
-import axios from "axios";
-
-const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "https://ai-powered-financial-analytics-and.onrender.com";
-
-const expenseForecastApi = axios.create({
-    baseURL: `${API_URL}/api/v1/expense-forecasts`,
-    withCredentials: true,
-    headers: {
-        "Content-Type": "application/json",
-    },
-});
+import apiClient from "./apiClient";
 
 // ============================================================
 // GET ALL FORECASTS
 // GET /api/v1/expense-forecasts
 // ============================================================
 
-export const getExpenseForecasts = async (
-    params = {}
-) => {
-    const response = await expenseForecastApi.get(
-        "/",
+export const getExpenseForecasts = async (params = {}) => {
+    const response = await apiClient.get(
+        "/expense-forecasts",
         {
             params,
         }
@@ -29,6 +15,7 @@ export const getExpenseForecasts = async (
 
     return response.data;
 };
+
 
 // ============================================================
 // GENERATE FORECAST
@@ -38,30 +25,28 @@ export const getExpenseForecasts = async (
 export const generateExpenseForecasts = async (
     data = {}
 ) => {
-    const response =
-        await expenseForecastApi.post(
-            "/generate",
-            data
-        );
+    const response = await apiClient.post(
+        "/expense-forecasts/generate",
+        data
+    );
 
     return response.data;
 };
+
 
 // ============================================================
 // GET SINGLE FORECAST
 // GET /api/v1/expense-forecasts/:id
 // ============================================================
 
-export const getExpenseForecastById = async (
-    id
-) => {
-    const response =
-        await expenseForecastApi.get(
-            `/${id}`
-        );
+export const getExpenseForecastById = async (id) => {
+    const response = await apiClient.get(
+        `/expense-forecasts/${id}`
+    );
 
     return response.data;
 };
+
 
 // ============================================================
 // FORECAST VS ACTUAL
@@ -71,17 +56,14 @@ export const getExpenseForecastById = async (
 export const getExpenseForecastSummary = async (
     month
 ) => {
-    const response =
-        await expenseForecastApi.get(
-            "/summary",
-            {
-                params: {
-                    month,
-                },
-            }
-        );
+    const response = await apiClient.get(
+        "/expense-forecasts/summary",
+        {
+            params: {
+                month,
+            },
+        }
+    );
 
     return response.data;
 };
-
-export default expenseForecastApi;

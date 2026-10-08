@@ -5,44 +5,27 @@ import {
   Routes,
 } from "react-router-dom";
 
+import AppLayout from "./components/layout/AppLayout";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
-import DashboardPage from "./pages/dashboard/DashboardPage";
 
-import AppLayout from "./components/layout/AppLayout";
+import DashboardPage from "./pages/dashboard/DashboardPage";
 import PortfolioPage from "./pages/portfolio/PortfolioPage";
+import TransactionsPage from "./pages/transaction/TransactionsPage";
 import ExpenseForecastPage from "./pages/expenseForecast/ExpenseForecastPage";
 import FraudAlertsPage from "./pages/fraudAlerts/FraudAlertsPage";
 import RecommendationsPage from "./pages/recommendation/RecommendationsPage";
-import TransactionsPage from "./pages/transaction/TransactionsPage";
-
-const PlaceholderPage = ({ title }) => {
-  return (
-    <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="text-center">
-        <p className="text-sm text-gray-400">
-          FinSight
-        </p>
-
-        <h1 className="mt-2 text-2xl font-bold">
-          {title}
-        </h1>
-
-        <p className="mt-2 text-sm text-gray-500">
-          This module is coming next.
-        </p>
-      </div>
-    </div>
-  );
-};
 
 const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ========================= */}
-        {/* AUTH */}
-        {/* ========================= */}
+
+        {/* ==========================================
+                    PUBLIC
+                ========================================== */}
 
         <Route
           path="/login"
@@ -54,82 +37,64 @@ const App = () => {
           element={<RegisterPage />}
         />
 
-        {/* ========================= */}
-        {/* APPLICATION */}
-        {/* ========================= */}
 
-        <Route element={<AppLayout />}>
-          <Route
-            path="/"
-            element={<DashboardPage />}
-          />
+        {/* ==========================================
+                    PROTECTED
+                ========================================== */}
 
-          <Route
-            path="/portfolio"
-            element={
-              <PortfolioPage />
-            }
-          />
+        <Route element={<ProtectedRoute />}>
 
-          <Route
-            path="/expense-forecasts"
-            element={<ExpenseForecastPage />}
-          />
+          <Route element={<AppLayout />}>
 
-          <Route
-            path="/transactions"
-            element={
-              <TransactionsPage />
-            }
-          />
+            <Route
+              path="/"
+              element={<DashboardPage />}
+            />
 
-          <Route
-            path="/market"
-            element={
-              <PlaceholderPage title="Market Intelligence" />
-            }
-          />
+            <Route
+              path="/portfolio"
+              element={<PortfolioPage />}
+            />
 
-          <Route
-            path="/predictions"
-            element={
-              <PlaceholderPage title="AI Predictions" />
-            }
-          />
+            <Route
+              path="/transactions"
+              element={<TransactionsPage />}
+            />
 
-          <Route
-            path="/recommendations"
-            element={
-              <RecommendationsPage />
-            }
-          />
+            <Route
+              path="/expense-forecasts"
+              element={<ExpenseForecastPage />}
+            />
 
-          <Route
-            path="/fraud-alerts"
-            element={
-              <FraudAlertsPage />
-            }
-          />
+            <Route
+              path="/fraud-alerts"
+              element={<FraudAlertsPage />}
+            />
 
-          <Route
-            path="/reports"
-            element={
-              <PlaceholderPage title="Reports" />
-            }
-          />
+            <Route
+              path="/recommendations"
+              element={<RecommendationsPage />}
+            />
 
-          <Route
-            path="/settings"
-            element={
-              <PlaceholderPage title="Settings" />
-            }
-          />
+          </Route>
+
         </Route>
+
+
+        {/* ==========================================
+                    FALLBACK
+                ========================================== */}
 
         <Route
           path="*"
-          element={<Navigate to="/" replace />}
+          element={
+            <Navigate
+              to="/"
+              replace
+            />
+          }
         />
+
       </Routes>
     </BrowserRouter>
   );

@@ -1,63 +1,111 @@
-import axios from "axios";
+import apiClient from "./apiClient";
 
-const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "https://ai-powered-financial-analytics-and.onrender.com";
-
-const transactionApi = axios.create({
-    baseURL: `${API_URL}/api/v1/transactions`,
-    withCredentials: true,
-    headers: {
-        "Content-Type": "application/json",
-    },
-});
+// ============================================================
+// GET ALL TRANSACTIONS
+// GET /api/v1/transactions
+// ============================================================
 
 export const getTransactions = async (params = {}) => {
-    const response = await transactionApi.get("/", {
-        params,
-    });
-
-    return response.data;
-};
-
-export const addTransaction = async (data) => {
-    const response = await transactionApi.post("/", data);
-
-    return response.data;
-};
-
-export const getTransactionById = async (id) => {
-    const response = await transactionApi.get(`/${id}`);
-
-    return response.data;
-};
-
-export const updateTransaction = async (id, data) => {
-    const response = await transactionApi.put(`/${id}`, data);
-
-    return response.data;
-};
-
-export const deleteTransaction = async (id) => {
-    const response = await transactionApi.delete(`/${id}`);
-
-    return response.data;
-};
-
-export const getTransactionSummary = async (params = {}) => {
-    const response = await transactionApi.get("/summary", {
-        params,
-    });
-
-    return response.data;
-};
-
-export const checkTransactionFraud = async (id) => {
-    const response = await transactionApi.get(
-        `/${id}/check-fraud`
+    const response = await apiClient.get(
+        "/transactions",
+        {
+            params,
+        }
     );
 
     return response.data;
 };
 
-export default transactionApi;
+
+// ============================================================
+// ADD TRANSACTION
+// POST /api/v1/transactions
+// ============================================================
+
+export const addTransaction = async (data) => {
+    const response = await apiClient.post(
+        "/transactions",
+        data
+    );
+
+    return response.data;
+};
+
+
+// ============================================================
+// GET SINGLE TRANSACTION
+// GET /api/v1/transactions/:id
+// ============================================================
+
+export const getTransactionById = async (id) => {
+    const response = await apiClient.get(
+        `/transactions/${id}`
+    );
+
+    return response.data;
+};
+
+
+// ============================================================
+// UPDATE TRANSACTION
+// PUT /api/v1/transactions/:id
+// ============================================================
+
+export const updateTransaction = async (
+    id,
+    data
+) => {
+    const response = await apiClient.put(
+        `/transactions/${id}`,
+        data
+    );
+
+    return response.data;
+};
+
+
+// ============================================================
+// DELETE TRANSACTION
+// DELETE /api/v1/transactions/:id
+// ============================================================
+
+export const deleteTransaction = async (id) => {
+    const response = await apiClient.delete(
+        `/transactions/${id}`
+    );
+
+    return response.data;
+};
+
+
+// ============================================================
+// TRANSACTION SUMMARY
+// GET /api/v1/transactions/summary
+// ============================================================
+
+export const getTransactionSummary = async (
+    params = {}
+) => {
+    const response = await apiClient.get(
+        "/transactions/summary",
+        {
+            params,
+        }
+    );
+
+    return response.data;
+};
+
+
+// ============================================================
+// CHECK FRAUD
+// GET /api/v1/transactions/:id/check-fraud
+// ============================================================
+
+export const checkTransactionFraud = async (id) => {
+    const response = await apiClient.get(
+        `/transactions/${id}/check-fraud`
+    );
+
+    return response.data;
+};

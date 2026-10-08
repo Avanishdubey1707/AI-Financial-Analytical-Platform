@@ -1,16 +1,4 @@
-import axios from "axios";
-
-const API_URL =
-    import.meta.env.VITE_API_URL ||
-    "https://ai-powered-financial-analytics-and.onrender.com";
-
-const fraudAlertApi = axios.create({
-    baseURL: `${API_URL}/api/v1/fraud-alerts`,
-    withCredentials: true,
-    headers: {
-        "Content-Type": "application/json",
-    },
-});
+import apiClient from "./apiClient";
 
 // ============================================================
 // GET ALL FRAUD ALERTS
@@ -18,12 +6,16 @@ const fraudAlertApi = axios.create({
 // ============================================================
 
 export const getFraudAlerts = async (params = {}) => {
-    const response = await fraudAlertApi.get("/", {
-        params,
-    });
+    const response = await apiClient.get(
+        "/fraud-alerts",
+        {
+            params,
+        }
+    );
 
     return response.data;
 };
+
 
 // ============================================================
 // GET SINGLE FRAUD ALERT
@@ -31,10 +23,13 @@ export const getFraudAlerts = async (params = {}) => {
 // ============================================================
 
 export const getFraudAlertById = async (id) => {
-    const response = await fraudAlertApi.get(`/${id}`);
+    const response = await apiClient.get(
+        `/fraud-alerts/${id}`
+    );
 
     return response.data;
 };
+
 
 // ============================================================
 // UPDATE FRAUD ALERT STATUS
@@ -45,8 +40,8 @@ export const updateFraudAlertStatus = async (
     id,
     status
 ) => {
-    const response = await fraudAlertApi.put(
-        `/${id}/status`,
+    const response = await apiClient.put(
+        `/fraud-alerts/${id}/status`,
         {
             status,
         }
@@ -54,5 +49,3 @@ export const updateFraudAlertStatus = async (
 
     return response.data;
 };
-
-export default fraudAlertApi;

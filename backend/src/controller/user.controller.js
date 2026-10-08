@@ -5,9 +5,12 @@ const ApiResponse = require("../utils/ApiResponse");
 
 const options = {
   httpOnly: true,
-  secure: true,
-  sameSite: "none",
-  maxAge: 10 * 24 * 60 * 60 * 1000, // 10 days
+  secure: process.env.NODE_ENV === "production",
+  sameSite:
+    process.env.NODE_ENV === "production"
+      ? "none"
+      : "lax",
+  maxAge: 10 * 24 * 60 * 60 * 1000,
 };
 
 const generateAccessAndRefreshTokens = async (user) => {

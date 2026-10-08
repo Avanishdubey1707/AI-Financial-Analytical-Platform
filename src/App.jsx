@@ -12,6 +12,9 @@ import DashboardPage from "./pages/dashboard/DashboardPage";
 import AppLayout from "./components/layout/AppLayout";
 import PortfolioPage from "./pages/portfolio/PortfolioPage";
 import ExpenseForecastPage from "./pages/expenseForecast/ExpenseForecastPage";
+import FraudAlertsPage from "./pages/fraudAlerts/FraudAlertsPage";
+import RecommendationsPage from "./pages/recommendation/RecommendationsPage";
+import TransactionsPage from "./pages/transaction/TransactionsPage";
 
 const PlaceholderPage = ({ title }) => {
   return (
@@ -76,7 +79,7 @@ const App = () => {
           <Route
             path="/transactions"
             element={
-              <PlaceholderPage title="Transactions" />
+              <TransactionsPage />
             }
           />
 
@@ -97,14 +100,14 @@ const App = () => {
           <Route
             path="/recommendations"
             element={
-              <PlaceholderPage title="AI Recommendations" />
+              <RecommendationsPage />
             }
           />
 
           <Route
             path="/fraud-alerts"
             element={
-              <PlaceholderPage title="Fraud Alerts" />
+              <FraudAlertsPage />
             }
           />
 

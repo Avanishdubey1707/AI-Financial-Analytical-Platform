@@ -178,10 +178,6 @@ const Topbar = () => {
                             placeholder="Search transactions, stocks, reports..."
                             className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
                         />
-
-                        <kbd className="hidden rounded-md border border-gray-200 bg-white px-2 py-1 text-[10px] font-medium text-gray-400 lg:block">
-                            ⌘ K
-                        </kbd>
                     </div>
                 </div>
 

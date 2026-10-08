@@ -1,38 +1,65 @@
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { formatPercent } from "../../lib/format";
+import { Card, Skeleton } from "../ui/primitives";
+
+/**
+ * change:         number (e.g. 8.4) or null/undefined to hide the badge
+ * positiveIsGood: set to false for metrics like expenses, where a drop is good news
+ */
 const StatCard = ({
     title,
     value,
     change,
     description,
     icon: Icon,
-    positive = true,
+    loading = false,
+    error = false,
+    positiveIsGood = true,
 }) => {
-    return (
-        <div className="rounded-2xl border border-gray-200 bg-white p-5">
-            <div className="mb-5 flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100">
-                    <Icon size={19} className="text-gray-700" />
-                </div>
+    const hasChange = typeof change === "number" && Number.isFinite(change);
+    const isGood = hasChange && change >= 0 === positiveIsGood;
+    const ChangeIcon = change >= 0 ? ArrowUpRight : ArrowDownRight;
 
-                <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${positive
-                            ? "bg-green-50 text-green-600"
-                            : "bg-red-50 text-red-600"
-                        }`}
-                >
-                    {change}
-                </span>
+    return (
+        <Card>
+            <div className="flex items-start justify-between">
+                <p className="text-sm font-medium text-gray-500">{title}</p>
+                {Icon && (
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+                        <Icon className="h-4.5 w-4.5" size={18} />
+                    </span>
+                )}
             </div>
 
-            <p className="text-sm text-gray-500">{title}</p>
+            {loading ? (
+                <>
+                    <Skeleton className="mt-4 h-8 w-36" />
+                    <Skeleton className="mt-3 h-4 w-44" />
+                </>
+            ) : (
+                <>
+                    <p className="mt-3 text-2xl font-bold tracking-tight text-gray-900">
+                        {error ? "—" : value}
+                    </p>
 
-            <h3 className="mt-1 text-2xl font-bold tracking-tight">
-                {value}
-            </h3>
-
-            <p className="mt-2 text-xs text-gray-400">
-                {description}
-            </p>
-        </div>
+                    <div className="mt-2 flex items-center gap-2 text-sm">
+                        {hasChange && !error && (
+                            <span
+                                className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                                    isGood ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
+                                }`}
+                            >
+                                <ChangeIcon size={12} />
+                                {formatPercent(change)}
+                            </span>
+                        )}
+                        <span className="text-gray-500">
+                            {error ? "Unavailable right now" : description}
+                        </span>
+                    </div>
+                </>
+            )}
+        </Card>
     );
 };
 

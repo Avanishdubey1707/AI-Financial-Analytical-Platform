@@ -119,13 +119,13 @@ const Sidebar = () => {
 
             {/* Sidebar */}
             <aside
-                className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-gray-200 bg-white transition-transform duration-300 lg:translate-x-0 ${mobileOpen
+                className={`fixed inset-y-0 left-0 z-50 flex w-65 flex-col border-r border-gray-200 bg-white transition-transform duration-300 lg:translate-x-0 ${mobileOpen
                         ? "translate-x-0"
                         : "-translate-x-full"
                     }`}
             >
                 {/* Logo */}
-                <div className="flex h-[76px] items-center justify-between border-b border-gray-100 px-6">
+                <div className="flex h-19 items-center justify-between border-b border-gray-100 px-6">
                     <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-900">
                             <CircleDollarSign

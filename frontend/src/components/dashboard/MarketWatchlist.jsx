@@ -1,87 +1,72 @@
-const stocks = [
-    {
-        symbol: "RELIANCE",
-        name: "Reliance Industries",
-        price: "₹2,941.20",
-        change: "+1.82%",
-        positive: true,
-    },
-    {
-        symbol: "TCS",
-        name: "Tata Consultancy",
-        price: "₹3,842.65",
-        change: "+0.94%",
-        positive: true,
-    },
-    {
-        symbol: "INFY",
-        name: "Infosys",
-        price: "₹1,582.30",
-        change: "-0.42%",
-        positive: false,
-    },
-    {
-        symbol: "HDFCBANK",
-        name: "HDFC Bank",
-        price: "₹1,742.15",
-        change: "+1.12%",
-        positive: true,
-    },
-];
+import { useWatchlist } from "../../hooks/useDashboardData";
+import { formatINR, formatPercent } from "../../lib/format";
+import { Card, CardHeader, EmptyState, InlineError, Skeleton } from "../ui/primitives";
 
 const MarketWatchlist = () => {
+    const { data, loading, error, refetch } = useWatchlist(5);
+
     return (
-        <div className="rounded-2xl border border-gray-200 bg-white">
-            <div className="flex items-center justify-between border-b border-gray-100 p-5">
-                <div>
-                    <h3 className="font-semibold">
-                        Market watchlist
-                    </h3>
+        <Card>
+            <CardHeader title="AI watchlist" subtitle="Latest price vs. model forecast" />
 
-                    <p className="mt-1 text-xs text-gray-400">
-                        AI monitored assets
-                    </p>
+            {loading ? (
+                <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                    ))}
                 </div>
+            ) : error && !data ? (
+                <InlineError error={error} onRetry={refetch} />
+            ) : !data?.length ? (
+                <EmptyState
+                    title="No forecasts available"
+                    message="Predictions will show up here once the model has run on your stocks."
+                />
+            ) : (
+                <ul className="divide-y divide-gray-100">
+                    {data.map((stock) => {
+                        const up = (stock.expectedChangePct ?? 0) >= 0;
 
-                <button className="text-xs font-semibold text-gray-500 hover:text-gray-900">
-                    View all
-                </button>
-            </div>
+                        return (
+                            <li key={stock.symbol} className="flex items-center gap-4 py-3">
+                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-xs font-bold text-gray-700">
+                                    {stock.symbol.slice(0, 3)}
+                                </span>
 
-            <div className="divide-y divide-gray-100">
-                {stocks.map((stock) => (
-                    <div
-                        key={stock.symbol}
-                        className="flex items-center justify-between p-4"
-                    >
-                        <div>
-                            <p className="text-sm font-semibold">
-                                {stock.symbol}
-                            </p>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-gray-900">{stock.symbol}</p>
+                                    <p className="truncate text-xs text-gray-500">
+                                        {Math.round(stock.confidence)}% confidence
+                                        {stock.model ? ` · ${stock.model}` : ""}
+                                    </p>
+                                </div>
 
-                            <p className="mt-0.5 text-xs text-gray-400">
-                                {stock.name}
-                            </p>
-                        </div>
+                                <div className="text-right">
+                                    <p className="text-sm font-semibold text-gray-900">
+                                        {stock.current ? formatINR(stock.current) : "—"}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        Forecast {formatINR(stock.predicted)}
+                                    </p>
+                                </div>
 
-                        <div className="text-right">
-                            <p className="text-sm font-semibold">
-                                {stock.price}
-                            </p>
-
-                            <p
-                                className={`mt-0.5 text-xs font-semibold ${stock.positive
-                                        ? "text-green-600"
-                                        : "text-red-500"
+                                <span
+                                    className={`w-16 rounded-full px-2 py-1 text-center text-xs font-semibold ${
+                                        stock.expectedChangePct === null
+                                            ? "bg-gray-100 text-gray-500"
+                                            : up
+                                            ? "bg-green-50 text-green-700"
+                                            : "bg-red-50 text-red-700"
                                     }`}
-                            >
-                                {stock.change}
-                            </p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
+                                >
+                                    {formatPercent(stock.expectedChangePct)}
+                                </span>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </Card>
     );
 };
 

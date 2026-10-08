@@ -159,7 +159,7 @@ const Topbar = () => {
         user?.email || "your@email.com";
 
     return (
-        <header className="sticky top-0 z-30 h-[76px] border-b border-gray-200 bg-white/90 backdrop-blur">
+        <header className="sticky top-0 z-30 h-19 border-b border-gray-200 bg-white/90 backdrop-blur">
             <div className="flex h-full items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
 
                 {/* ===================================== */}
@@ -323,7 +323,7 @@ const Topbar = () => {
                             {/* User name */}
 
                             <div className="hidden text-left lg:block">
-                                <p className="max-w-[120px] truncate text-xs font-semibold text-gray-900">
+                                <p className="max-w-30 truncate text-xs font-semibold text-gray-900">
                                     {loadingUser
                                         ? "Loading..."
                                         : displayName}
@@ -346,7 +346,7 @@ const Topbar = () => {
                         {/* PROFILE DROPDOWN */}
 
                         {profileOpen && (
-                            <div className="absolute right-0 mt-3 w-[280px] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
+                            <div className="absolute right-0 mt-3 w-70 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
 
                                 {/* User header */}
 
@@ -375,7 +375,7 @@ const Topbar = () => {
                                     <button
                                         onClick={() => {
                                             setProfileOpen(false);
-                                            navigate("/settings");
+                                            navigate("/profile");
                                         }}
                                         className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-gray-600 transition hover:bg-gray-100 hover:text-gray-900"
                                     >

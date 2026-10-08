@@ -3,6 +3,19 @@ const ApiResponse = require("../utils/ApiResponse");
 const User = require("../models/user.model");
 const mongoose = require("mongoose");
 const FraudAlert = require("../models/fraudAlert.model");
+const ml = require("../utils/mlClient");
+
+// ── fraud-scoring settings ──────────────────────────────────
+const FLAG_THRESHOLD = 0.4; // riskScore >= 0.4  -> a FraudAlert is created
+const HIGH_RISK_THRESHOLD = 0.7; // riskScore >= 0.7  -> status "CONFIRMED" (same rule as before)
+// Statuses this code assigns by itself (same two values as your original checkFraud).
+// Any OTHER status (e.g. REVIEWED / DISMISSED) is a human decision and is never changed by a re-check.
+const AUTO_STATUSES = ["PENDING", "CONFIRMED"];
+const HISTORY_LIMIT = 1000; // how many past transactions the model looks at
+const FRAUD_ML_TIMEOUT_MS = 5000; // POST /transactions must stay fast; after this we use the rules
+// Dates are stored in UTC, but "late at night" must be judged in the user's local time.
+// 330 = India (IST, UTC+5:30). Change via env var if your users are elsewhere.
+const LOCAL_UTC_OFFSET_MINUTES = Number(process.env.FRAUD_TZ_OFFSET_MINUTES ?? 330);
 
 // ────────────────────────────────────────────────────────────
 // POST /transactions
@@ -37,8 +50,14 @@ const addTransaction = async (req, res) => {
       description,
     });
 
-    // fraud check on every new transaction
-    const fraudAlert = await checkFraud(transaction);
+    // fraud check on every new transaction. The transaction is already saved,
+    // so a failure here must never turn the response into a 500.
+    let fraudAlert = null;
+    try {
+      fraudAlert = await checkFraud(transaction); // null when the transaction looks normal
+    } catch (fraudError) {
+      console.error(`fraud check failed for transaction ${transaction._id}:`, fraudError);
+    }
 
     return res.status(201).json(
       new ApiResponse(201, "Transaction created successfully", {
@@ -56,8 +75,8 @@ const addTransaction = async (req, res) => {
 
 // ────────────────────────────────────────────────────────────
 // GET /transactions
-// Filtering/sorting/pagination, same as before, plus each transaction's
-// existing fraud alert (if any) attached — no recomputation on read.
+// Filtering/sorting/pagination, plus each transaction's existing
+// fraud alert (if any) attached — no recomputation on read.
 // ────────────────────────────────────────────────────────────
 const getAllTransactions = async (req, res) => {
   try {
@@ -153,8 +172,6 @@ const getAllTransactions = async (req, res) => {
 
 // ────────────────────────────────────────────────────────────
 // GET /transactions/:id
-// Fixed: the old `.json(400, "Id is required")` call was buggy —
-// .json() only takes one argument, so the message was silently dropped.
 // ────────────────────────────────────────────────────────────
 const getTransactionById = async (req, res) => {
   try {
@@ -183,16 +200,11 @@ const getTransactionById = async (req, res) => {
 
 // ────────────────────────────────────────────────────────────
 // PUT /transactions/:id
-// Fixed: was using findOneAndReplace(), which REPLACES the entire
-// document with only {category, amount, description} — this would
-// silently wipe out userId, type, and date on every update (and would
-// likely throw a validation error if those fields are `required` in
-// your schema). Switched to findOneAndUpdate() with $set, which only
-// touches the fields actually provided.
+// Uses findOneAndUpdate() with $set so only the provided fields change.
 //
-// Also re-runs fraud scoring, since amount is exactly the field that
-// determines fraud risk — an update that changes amount from ₹500 to
-// ₹5,00,000 should re-trigger a check.
+// Fraud scoring is re-run when amount OR category changed: the model judges
+// a transaction against the user's usual spend IN THAT CATEGORY, so both
+// fields affect the risk. Description-only edits don't need a re-score.
 // ────────────────────────────────────────────────────────────
 const updateTransactionDetails = async (req, res) => {
   const { category, amount, description } = req.body;
@@ -226,11 +238,16 @@ const updateTransactionDetails = async (req, res) => {
       return res.status(404).json(new ApiResponse(404, "Transaction not found"));
     }
 
-    // re-run fraud scoring only if amount changed — category/description
-    // edits don't affect risk, so no need to re-score on every edit
     let fraudAlert = null;
-    if (amount != null) {
-      fraudAlert = await checkFraud(transaction);
+    if (amount != null || category != null) {
+      try {
+        fraudAlert = await checkFraud(transaction);
+      } catch (fraudError) {
+        console.error(`fraud re-check failed for transaction ${transaction._id}:`, fraudError);
+        fraudAlert = await FraudAlert.findOne({ transactionId: transaction._id });
+      }
+    } else {
+      fraudAlert = await FraudAlert.findOne({ transactionId: transaction._id });
     }
 
     return res.status(200).json(
@@ -247,8 +264,7 @@ const updateTransactionDetails = async (req, res) => {
 
 // ────────────────────────────────────────────────────────────
 // DELETE /transactions/:id
-// Also removes the linked fraud alert, if any, to avoid leaving an
-// orphaned FraudAlert row pointing at a transaction that no longer exists.
+// Also removes the linked fraud alert, if any.
 // ────────────────────────────────────────────────────────────
 const deleteTransaction = async (req, res) => {
   try {
@@ -273,7 +289,7 @@ const deleteTransaction = async (req, res) => {
 };
 
 // ────────────────────────────────────────────────────────────
-// GET /transactions/summary — unchanged from before
+// GET /transactions/summary — unchanged
 // ────────────────────────────────────────────────────────────
 const getTransactionSummary = async (req, res) => {
   try {
@@ -356,47 +372,145 @@ const checkFraudEndpoint = async (req, res) => {
 
     const fraudAlert = await checkFraud(transaction);
 
-    return res
-      .status(200)
-      .json(new ApiResponse(200, "Fraud check completed", { fraudAlert }));
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        fraudAlert ? "Fraud check completed" : "Fraud check completed — no risk detected",
+        { fraudAlert },
+      ),
+    );
   } catch (error) {
     console.error("checkFraudEndpoint error:", error);
     return res.status(500).json(new ApiResponse(500, "Internal server error"));
   }
 };
 
+// ════════════════════════════════════════════════════════════
+// FRAUD SCORING
+// ════════════════════════════════════════════════════════════
+
 /**
  * Core fraud-scoring logic — shared by addTransaction, updateTransactionDetails,
- * and the manual check-fraud endpoint. Upserts so a transaction only ever has
- * one FraudAlert row, which gets refreshed rather than duplicated on re-checks.
+ * and the manual check-fraud endpoint.
+ *
+ *  - risk below FLAG_THRESHOLD  -> no alert. An automatic alert (PENDING / CONFIRMED) left over from
+ *                                  an earlier, riskier version of the transaction is removed.
+ *  - risk at/above it           -> one FraudAlert per transaction, created or refreshed; its status
+ *                                  is recomputed from the score, exactly as your original code did.
+ *
+ * Alerts with any other status (a human marked them REVIEWED / DISMISSED ...) are never overwritten.
+ * Returns the FraudAlert document, or null when the transaction looks normal.
  */
 const checkFraud = async (transaction) => {
   if (!transaction) {
     throw new Error("Transaction not found");
   }
 
-  const riskScore = await computeFraudScore(transaction);
-  const status = riskScore >= 0.7 ? "CONFIRMED" : "PENDING";
+  const { riskScore, reasons, modelUsed } = await getFraudScore(transaction);
 
-  const fraudAlert = await FraudAlert.findOneAndUpdate(
-    { transactionId: transaction._id },
-    { riskScore, status },
-    { upsert: true, new: true, runValidators: true },
-  );
+  if (riskScore < FLAG_THRESHOLD) {
+    await FraudAlert.deleteOne({ transactionId: transaction._id, status: { $in: AUTO_STATUSES } });
+    return FraudAlert.findOne({ transactionId: transaction._id }); // null, or a human-reviewed alert
+  }
 
-  return fraudAlert;
+  const autoStatus = riskScore >= HIGH_RISK_THRESHOLD ? "CONFIRMED" : "PENDING";
+
+  const existing = await FraudAlert.findOne({ transactionId: transaction._id });
+  if (existing) {
+    existing.riskScore = riskScore;
+    existing.reasons = reasons; // add `reasons` and `modelUsed` to your FraudAlert schema,
+    existing.modelUsed = modelUsed; // otherwise Mongoose silently ignores them
+    if (AUTO_STATUSES.includes(existing.status)) existing.status = autoStatus;
+    await existing.save();
+    return existing;
+  }
+
+  return FraudAlert.create({
+    transactionId: transaction._id,
+    riskScore,
+    status: autoStatus,
+    reasons,
+    modelUsed,
+  });
 };
 
-const computeFraudScore = async (transaction) => {
+/**
+ * Returns { riskScore (0-1), reasons: string[], modelUsed }.
+ * Tries the ML service first; if it is down, slow or errors, falls back to the
+ * simple rules so every transaction still gets scored.
+ */
+const getFraudScore = async (transaction) => {
+  try {
+    // Compare against the user's earlier transactions of the SAME type. Mixing in income
+    // (e.g. a salary credit) would distort what "normal" spending looks like.
+    const history = await Transaction.find({
+      userId: transaction.userId,
+      type: transaction.type,
+      _id: { $ne: transaction._id },
+      date: { $lte: transaction.date },
+    })
+      .sort({ date: -1 })
+      .limit(HISTORY_LIMIT)
+      .lean();
+
+    // ── AI MODEL CALL ────────────────────────────────────────
+    const result = await withTimeout(
+      ml.scoreFraud(toMlTransaction(transaction), history.map(toMlTransaction)),
+      FRAUD_ML_TIMEOUT_MS,
+    );
+    // ─────────────────────────────────────────────────────────
+
+    return {
+      riskScore: Math.round((result.risk_score / 100) * 1000) / 1000, // service: 0-100 -> yours: 0-1
+      reasons: result.reasons,
+      modelUsed: result.model_used,
+    };
+  } catch (error) {
+    console.error(`ML fraud scoring unavailable, using rule-based fallback: ${error.message}`);
+    const { score, reasons } = computeFraudScoreFallback(transaction);
+    return { riskScore: score, reasons, modelUsed: "rules_fallback" };
+  }
+};
+
+// shape one transaction the way the Python service expects it
+const toMlTransaction = (t) => ({
+  id: String(t._id),
+  amount: t.amount,
+  date: toLocalWallClockIso(t.date),
+  category: t.category,
+  type: t.type,
+});
+
+// shift UTC -> user's local wall-clock time so "02:30 at night" really means night for the user
+const toLocalWallClockIso = (date) =>
+  new Date(new Date(date).getTime() + LOCAL_UTC_OFFSET_MINUTES * 60 * 1000).toISOString();
+
+const withTimeout = (promise, ms) => {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+};
+
+/**
+ * Your original rule-based scoring, kept as the safety net for when the ML
+ * service cannot be reached.
+ */
+const computeFraudScoreFallback = (transaction) => {
   let score = 0;
+  const reasons = [];
 
-  if (transaction.amount > 100000) score += 0.4;
-  if (transaction.type === "expense" && transaction.amount > 50000) score += 0.5;
+  if (transaction.amount > 100000) {
+    score += 0.4;
+    reasons.push("Amount is above 1,00,000");
+  }
+  if (transaction.type === "expense" && transaction.amount > 50000) {
+    score += 0.5;
+    reasons.push("Expense above 50,000");
+  }
 
-  // e.g. flag transactions made at unusual hours, rapid repeats, etc.
-  // this is where you'd call out to an actual ML model/service
-
-  return Math.min(score, 1);
+  return { score: Math.min(score, 1), reasons };
 };
 
 module.exports = {

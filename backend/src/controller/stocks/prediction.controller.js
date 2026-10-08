@@ -3,7 +3,7 @@ const StockPrice = require("../../models/stocksModel/stockPrice.model");
 const Prediction = require("../../models/stocksModel/prediction.model");
 const ApiResponse = require("../../utils/ApiResponse");
 const ml = require("../../utils/mlClient");
-const { sendMlError } = require("../utils/mlError");
+const { sendMlError } = require("../../utils/mlError");
 
 // ── model settings ──────────────────────────────────────────
 const MODEL_NAME = "RandomForest_v1"; // what the Python service reports as model_used

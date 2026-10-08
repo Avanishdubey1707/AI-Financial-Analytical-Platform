@@ -10,6 +10,8 @@ import RegisterPage from "./pages/auth/RegisterPage";
 import DashboardPage from "./pages/dashboard/DashboardPage";
 
 import AppLayout from "./components/layout/AppLayout";
+import PortfolioPage from "./pages/portfolio/PortfolioPage";
+import ExpenseForecastPage from "./pages/expenseForecast/ExpenseForecastPage";
 
 const PlaceholderPage = ({ title }) => {
   return (
@@ -62,8 +64,13 @@ const App = () => {
           <Route
             path="/portfolio"
             element={
-              <PlaceholderPage title="Portfolio" />
+              <PortfolioPage />
             }
+          />
+
+          <Route
+            path="/expense-forecasts"
+            element={<ExpenseForecastPage />}
           />
 
           <Route

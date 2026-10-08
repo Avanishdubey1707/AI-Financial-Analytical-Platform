@@ -1,18 +1,16 @@
 import {
     BarChart3,
     BrainCircuit,
+    ChartNoAxesCombined,
     ChevronDown,
     CircleDollarSign,
-    CreditCard,
     LayoutDashboard,
     LineChart,
-    LogOut,
     PieChart,
     Receipt,
     Settings,
     ShieldAlert,
     Sparkles,
-    Wallet,
     X,
 } from "lucide-react";
 
@@ -39,6 +37,11 @@ const navigation = [
         label: "Market",
         path: "/market",
         icon: LineChart,
+    },
+    {
+        label: "Expense Forecast",
+        path: "/expense-forecasts",
+        icon: ChartNoAxesCombined,
     },
     {
         label: "AI Predictions",
@@ -89,6 +92,7 @@ const Sidebar = () => {
                 }
             >
                 <Icon size={18} strokeWidth={1.8} />
+
                 <span>{item.label}</span>
             </NavLink>
         );
@@ -96,15 +100,16 @@ const Sidebar = () => {
 
     return (
         <>
-            {/* Mobile button */}
+            {/* Mobile menu button */}
             <button
                 onClick={() => setMobileOpen(true)}
-                className="fixed left-4 top-4 z-40 rounded-lg border bg-white p-2 shadow-sm lg:hidden"
+                className="fixed left-4 top-4 z-40 rounded-lg border border-gray-200 bg-white p-2 shadow-sm lg:hidden"
+                aria-label="Open navigation"
             >
                 <LayoutDashboard size={20} />
             </button>
 
-            {/* Overlay */}
+            {/* Mobile overlay */}
             {mobileOpen && (
                 <div
                     onClick={() => setMobileOpen(false)}
@@ -112,6 +117,7 @@ const Sidebar = () => {
                 />
             )}
 
+            {/* Sidebar */}
             <aside
                 className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-gray-200 bg-white transition-transform duration-300 lg:translate-x-0 ${mobileOpen
                         ? "translate-x-0"
@@ -139,9 +145,11 @@ const Sidebar = () => {
                         </div>
                     </div>
 
+                    {/* Mobile close button */}
                     <button
                         onClick={() => setMobileOpen(false)}
-                        className="lg:hidden"
+                        className="rounded-lg p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 lg:hidden"
+                        aria-label="Close navigation"
                     >
                         <X size={20} />
                     </button>
@@ -165,6 +173,7 @@ const Sidebar = () => {
 
                 {/* Navigation */}
                 <div className="flex-1 overflow-y-auto px-4 py-6">
+                    {/* Workspace */}
                     <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                         Workspace
                     </p>
@@ -173,6 +182,7 @@ const Sidebar = () => {
                         {navigation.map(navItem)}
                     </nav>
 
+                    {/* Manage */}
                     <p className="mb-3 mt-8 px-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                         Manage
                     </p>
@@ -184,13 +194,13 @@ const Sidebar = () => {
 
                 {/* User */}
                 <div className="border-t border-gray-100 p-4">
-                    <div className="flex items-center gap-3 rounded-xl p-2 hover:bg-gray-50">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-sm font-bold">
+                    <div className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-gray-50">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-700">
                             AY
                         </div>
 
                         <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold">
+                            <p className="truncate text-sm font-semibold text-gray-900">
                                 Anurag Yadav
                             </p>
 
@@ -199,7 +209,10 @@ const Sidebar = () => {
                             </p>
                         </div>
 
-                        <ChevronDown size={16} className="text-gray-400" />
+                        <ChevronDown
+                            size={16}
+                            className="text-gray-400"
+                        />
                     </div>
                 </div>
             </aside>

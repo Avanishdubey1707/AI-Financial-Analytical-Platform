@@ -21,6 +21,6 @@ router
   .post("/:symbol/prices", verifyJWT, addStockPrice);
 router.get("/:symbol/prices/latest", getLatestStockPrice);
 router.get("/:symbol/chart", getStockChart);
-router.put("/refresh-price", refreshStockPrice);
+router.patch("/refresh-price", refreshStockPrice);
 
 module.exports = router;

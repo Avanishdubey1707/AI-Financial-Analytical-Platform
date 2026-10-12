@@ -508,8 +508,11 @@ const refreshStockPrice = async (req, res) => {
   try {
     const stocks = await Stock.find({});
     if (stocks.length === 0) {
-      console.log("No stocks found — run seedStocks.js first.");
-      return;
+      return res
+        .status(403)
+        .json(
+          new ApiResponse(403, "Currently there is not any stock available"),
+        );
     }
 
     let totalInserted = 0;
@@ -534,13 +537,13 @@ const refreshStockPrice = async (req, res) => {
       totalInserted += operations.length;
     }
 
-    return res.status(200).json(
-      new ApiResponse(200, "Stock price data refreshed")
-    );
+    return res
+      .status(200)
+      .json(new ApiResponse(200, "Stock price data refreshed"));
   } catch (error) {
-    return res.status(500).json(
-      new ApiResponse(500, "Internal server error", error.message)
-    )
+    return res
+      .status(500)
+      .json(new ApiResponse(500, "Internal server error", error.message));
   }
 };
 
@@ -551,5 +554,5 @@ module.exports = {
   getLatestStockPrice,
   addStockPrice,
   getStockChart,
-  refreshStockPrice
+  refreshStockPrice,
 };
